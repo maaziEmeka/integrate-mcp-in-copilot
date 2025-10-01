@@ -61,7 +61,7 @@ header {
   background-color: #283593;
 }
 
-#user-info {
+#user-info:not(.hidden) {
   display: flex;
   align-items: center;
   gap: 8px;

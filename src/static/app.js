@@ -18,12 +18,12 @@ document.addEventListener("DOMContentLoaded", () => {
       loginForm.classList.add("hidden");
       userInfo.classList.remove("hidden");
       userGreeting.textContent = `Hello, ${currentUser.username} (${currentUser.role})`;
-      signupForm.querySelector("button[type='submit'").disabled = false;
+      signupForm.querySelector("button[type='submit']").disabled = false;
     } else {
       loginForm.classList.remove("hidden");
       userInfo.classList.add("hidden");
       userGreeting.textContent = "";
-      signupForm.querySelector("button[type='submit'").disabled = true;
+      signupForm.querySelector("button[type='submit']").disabled = true;
     }
   }
 

@@ -5,13 +5,14 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException, Request, Response, status, Depends, Cookie
+from fastapi import FastAPI, HTTPException, Request, Response, status, Depends, Cookie, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
 import secrets
 
+app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
 
 # --- Basic in-memory user/session store ---
@@ -33,25 +34,8 @@ current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
+# In-memory activity database
 activities = {
-@app.post("/login")
-def login(request: Request, response: Response, username: str, password: str):
-    user = users.get(username)
-    if not user or user["password"] != password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    # Create session
-    session_id = secrets.token_hex(16)
-    sessions[session_id] = username
-    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=3600)
-    return {"message": f"Logged in as {username}", "role": user["role"]}
-
-
-@app.post("/logout")
-def logout(response: Response, session_id: str = Cookie(default=None)):
-    if session_id and session_id in sessions:
-        del sessions[session_id]
-    response.delete_cookie(key="session_id")
-    return {"message": "Logged out"}
     "Chess Club": {
         "description": "Learn strategies and compete in chess tournaments",
         "schedule": "Fridays, 3:30 PM - 5:00 PM",
@@ -107,6 +91,28 @@ def logout(response: Response, session_id: str = Cookie(default=None)):
         "participants": ["charlotte@mergington.edu", "henry@mergington.edu"]
     }
 }
+
+
+@app.post("/login")
+def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
+    """Login endpoint"""
+    user = users.get(username)
+    if not user or user["password"] != password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    # Create session
+    session_id = secrets.token_hex(16)
+    sessions[session_id] = username
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=3600)
+    return {"message": f"Logged in as {username}", "role": user["role"]}
+
+
+@app.post("/logout")
+def logout(response: Response, session_id: str = Cookie(default=None)):
+    """Logout endpoint"""
+    if session_id and session_id in sessions:
+        del sessions[session_id]
+    response.delete_cookie(key="session_id")
+    return {"message": "Logged out"}
 
 
 @app.get("/")
