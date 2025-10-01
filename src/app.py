@@ -5,13 +5,14 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException, Request, Response, status, Depends, Cookie
+from fastapi import FastAPI, HTTPException, Request, Response, status, Depends, Cookie, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
 import secrets
 
+app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
 
 # --- Basic in-memory user/session store ---
@@ -33,25 +34,8 @@ current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
 
+# In-memory activity database
 activities = {
-@app.post("/login")
-def login(request: Request, response: Response, username: str, password: str):
-    user = users.get(username)
-    if not user or user["password"] != password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    # Create session
-    session_id = secrets.token_hex(16)
-    sessions[session_id] = username
-    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=3600)
-    return {"message": f"Logged in as {username}", "role": user["role"]}
-
-
-@app.post("/logout")
-def logout(response: Response, session_id: str = Cookie(default=None)):
-    if session_id and session_id in sessions:
-        del sessions[session_id]
-    response.delete_cookie(key="session_id")
-    return {"message": "Logged out"}
     "Chess Club": {
         "description": "Learn strategies and compete in chess tournaments",
         "schedule": "Fridays, 3:30 PM - 5:00 PM",
@@ -114,14 +98,37 @@ def root():
     return RedirectResponse(url="/static/index.html")
 
 
+@app.post("/login")
+def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)):
+    """Login endpoint for basic authentication"""
+    user = users.get(username)
+    if not user or user["password"] != password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    # Create session
+    session_id = secrets.token_hex(16)
+    sessions[session_id] = username
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=3600)
+    return {"message": f"Logged in as {username}", "role": user["role"]}
+
+
+@app.post("/logout")
+def logout(response: Response, session_id: str = Cookie(default=None)):
+    """Logout endpoint to clear session"""
+    if session_id and session_id in sessions:
+        del sessions[session_id]
+    response.delete_cookie(key="session_id")
+    return {"message": "Logged out"}
+
+
 @app.get("/activities")
 def get_activities(user=Depends(get_current_user)):
+    """Get all activities - authentication optional for viewing"""
     return activities
 
 
 @app.post("/activities/{activity_name}/signup")
 def signup_for_activity(activity_name: str, email: str, user=Depends(get_current_user)):
-    """Sign up a student for an activity"""
+    """Sign up a student for an activity - requires authentication"""
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     if activity_name not in activities:
@@ -135,7 +142,7 @@ def signup_for_activity(activity_name: str, email: str, user=Depends(get_current
 
 @app.delete("/activities/{activity_name}/unregister")
 def unregister_from_activity(activity_name: str, email: str, user=Depends(get_current_user)):
-    """Unregister a student from an activity"""
+    """Unregister a student from an activity - requires authentication"""
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     if activity_name not in activities:
